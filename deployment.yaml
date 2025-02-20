@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pipeline-deployment
-  namespace: default
+  namespace: stage
 spec:
   replicas: 3
   selector:
