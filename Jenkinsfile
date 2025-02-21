@@ -1,12 +1,12 @@
 pipeline {
-     agent { label 'node-1' } // Set the agent to use node-1
+    agent { label 'node-1' } // Set the agent to use node-1
 
     environment {
         DOCKER_IMAGE = 'my-app'               // Docker image name
-        DOCKER_TAG = 'latest-v16'                 // Docker tag
+        DOCKER_TAG = 'latest-v16'             // Docker tag
         DOCKER_HUB_REPO = 'royjith/pikube'    // Docker Hub repository
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub'  // Docker Hub credentials ID
-        KUBE_CONFIG = '/tmp/kubeconfig'  // Path to the kubeconfig file or use Jenkins Kubernetes plugin credentials
+        KUBE_CONFIG = '/tmp/kubeconfig'       // Path to the kubeconfig file or use Jenkins Kubernetes plugin credentials
         DEPLOYMENT_NAME = 'pipeline-deployment'
         NAMESPACE = 'test'  // Kubernetes namespace to deploy to
     }
@@ -27,7 +27,7 @@ pipeline {
                     echo "Building Docker image with tag: ${tag}..."
                     // Build the Docker image with the determined tag
                     def buildResult = sh(script: "docker build -t ${DOCKER_HUB_REPO}:${tag} .", returnStatus: true)
-            
+
                     if (buildResult != 0) {
                         error 'Docker build failed!'  // Explicitly fail if Docker build fails
                     }
@@ -78,50 +78,49 @@ pipeline {
         }
 
         stage('Deploy to Kubernetes') {
-    when {
-        branch 'main'  // Only deploy on the 'main' branch
-    }
-    steps {
-        input message: 'Approve Kubernetes Deployment?', ok: 'Deploy'  // Manual approval before deployment
-        script {
-            echo 'Deploying Docker image to Kubernetes...'
+            when {
+                branch 'main'  // Only deploy on the 'main' branch
+            }
+            steps {
+                input message: 'Approve Kubernetes Deployment?', ok: 'Deploy'  // Manual approval before deployment
+                script {
+                    echo 'Deploying Docker image to Kubernetes...'
 
-            try {
-                // Set the kubeconfig file (for accessing the Kubernetes cluster)
-                withCredentials([file(credentialsId: 'pikube', variable: 'KUBECONFIG_FILE')]) {
+                    try {
+                        // Set the kubeconfig file (for accessing the Kubernetes cluster)
+                        withCredentials([file(credentialsId: 'pikube', variable: 'KUBECONFIG_FILE')]) {
 
-                    // Define the path to your deployment.yaml file in the repository
-                    def deploymentFile = 'deployment.yaml'  // Adjust path if necessary
+                            // Define the path to your deployment.yaml file in the repository
+                            def deploymentFile = 'deployment.yaml'  // Adjust path if necessary
 
-                    // Verify if the deployment.yaml exists in the workspace
-                    sh 'ls -al ${deploymentFile}'
+                            // Verify if the deployment.yaml exists in the workspace
+                            sh 'ls -al ${deploymentFile}'
 
-                    // Update the Docker image in the deployment.yaml with the newly pushed image tag
-                    echo "Updating Docker image in the deployment.yaml to ${DOCKER_HUB_REPO}:${DOCKER_TAG}"
-                    sh """
-                        sed -i 's|image: .*|image: ${DOCKER_HUB_REPO}:${DOCKER_TAG}|g' ${deploymentFile}
-                    """
+                            // Update the Docker image in the deployment.yaml with the newly pushed image tag
+                            echo "Updating Docker image in the deployment.yaml to ${DOCKER_HUB_REPO}:${DOCKER_TAG}"
+                            sh """
+                                sed -i 's|image: .*|image: ${DOCKER_HUB_REPO}:${DOCKER_TAG}|g' ${deploymentFile}
+                            """
 
-                    // Dynamically update the namespace in deployment.yaml before applying
-                    echo "Updating namespace in deployment.yaml to ${NAMESPACE}"
-                    sh """
-                        sed -i 's|namespace: .*|namespace: ${NAMESPACE}|g' ${deploymentFile}
-                    """
+                            // Dynamically update the namespace in deployment.yaml before applying
+                            echo "Updating namespace in deployment.yaml to ${NAMESPACE}"
+                            sh """
+                                sed -i 's|namespace: .*|namespace: ${NAMESPACE}|g' ${deploymentFile}
+                            """
 
-                    // Apply the updated deployment.yaml using kubectl
-                    echo 'Applying the updated deployment.yaml to the Kubernetes cluster...'
-                    sh """
-                        export KUBECONFIG=$KUBECONFIG_FILE
-                        kubectl apply -f ${deploymentFile} --namespace=${NAMESPACE}
-                    """
+                            // Apply the updated deployment.yaml using kubectl
+                            echo 'Applying the updated deployment.yaml to the Kubernetes cluster...'
+                            sh """
+                                export KUBECONFIG=$KUBECONFIG_FILE
+                                kubectl apply -f ${deploymentFile} --namespace=${NAMESPACE}
+                            """
+                        }
+                    } catch (Exception e) {
+                        error "Kubernetes deployment failed: ${e.message}"  // Explicitly fail if Kubernetes deployment fails
+                    }
                 }
-            } catch (Exception e) {
-                error "Kubernetes deployment failed: ${e.message}"  // Explicitly fail if Kubernetes deployment fails
             }
         }
-    }
-}
-
     }
 
     post {
