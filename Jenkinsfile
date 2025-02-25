@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'my-app'               // Docker image name
-        DOCKER_TAG = 'latest-v16.3'             // Docker tag
+        DOCKER_TAG = 'latest-v16.4'             // Docker tag
         DOCKER_HUB_REPO = 'royjith/pikube'    // Docker Hub repository
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub'  // Docker Hub credentials ID
         KUBE_CONFIG = '/tmp/kubeconfig'       // Path to the kubeconfig file or use Jenkins Kubernetes plugin credentials
@@ -22,14 +22,31 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Set default tag to 'latest' if DOCKER_TAG is not defined
-                    def tag = "${DOCKER_TAG ?: 'latest-v16.3'}"
+                    // Use the static Docker tag "latest-v3.0"
+                    def tag = "${DOCKER_TAG}"
                     echo "Building Docker image with tag: ${tag}..."
-                    // Build the Docker image with the determined tag
-                    def buildResult = sh(script: "docker build -t ${DOCKER_HUB_REPO}:${tag} .", returnStatus: true)
 
-                    if (buildResult != 0) {
-                        error 'Docker build failed!'  // Explicitly fail if Docker build fails
+                    try {
+                        // Clean up any existing images with the same name to prevent issues
+                        sh """
+                            docker rmi -f ${DOCKER_HUB_REPO}:${tag} || true
+                            docker system prune -f
+                        """
+
+                        // Build the Docker image and tag it as "latest"
+                        echo "Building the Docker image from Dockerfile..."
+                        sh "docker build -f Dockerfile --no-cache -t ${DOCKER_HUB_REPO}:version-3 ."
+
+                        // Tag the image with the appropriate repository and tag
+                        echo "Tagging the Docker image with tag: ${DOCKER_HUB_REPO}:${tag}..."
+                        sh """
+                            IMAGE_ID=\$(docker images -q ${DOCKER_HUB_REPO}:version-3)
+                            docker tag \$IMAGE_ID ${DOCKER_HUB_REPO}:${tag}
+                        """
+
+                        echo "Docker image built and tagged successfully: ${DOCKER_HUB_REPO}:${tag}"
+                    } catch (Exception e) {
+                        error "Docker build failed: ${e.message}"  // Explicitly fail if Docker build fails
                     }
                 }
             }
