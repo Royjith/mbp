@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'my-app'               // Docker image name
-        DOCKER_TAG = 'latest-v16.4'             // Docker tag
+        DOCKER_TAG = 'latest-v16.5'             // Docker tag
         DOCKER_HUB_REPO = 'royjith/pikube'    // Docker Hub repository
         DOCKER_HUB_CREDENTIALS_ID = 'dockerhub'  // Docker Hub credentials ID
         KUBE_CONFIG = '/tmp/kubeconfig'       // Path to the kubeconfig file or use Jenkins Kubernetes plugin credentials
@@ -22,7 +22,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Use the static Docker tag "latest-v3.0"
+                    // Use the static Docker tag "latest-v16.5"
                     def tag = "${DOCKER_TAG}"
                     echo "Building Docker image with tag: ${tag}..."
 
@@ -35,12 +35,12 @@ pipeline {
 
                         // Build the Docker image and tag it as "latest"
                         echo "Building the Docker image from Dockerfile..."
-                        sh "docker build -f Dockerfile --no-cache -t ${DOCKER_HUB_REPO}:version-3 ."
+                        sh "docker build -f Dockerfile --no-cache -t ${DOCKER_HUB_REPO}:latest-v16.5 ."
 
                         // Tag the image with the appropriate repository and tag
                         echo "Tagging the Docker image with tag: ${DOCKER_HUB_REPO}:${tag}..."
                         sh """
-                            IMAGE_ID=\$(docker images -q ${DOCKER_HUB_REPO}:version-3)
+                            IMAGE_ID=\$(docker images -q ${DOCKER_HUB_REPO}:latest-v16.5)
                             docker tag \$IMAGE_ID ${DOCKER_HUB_REPO}:${tag}
                         """
 
@@ -96,7 +96,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
            // when {
-             //   branch 'test'  // Only deploy on the 'main' branch
+             //   branch 'test'  // Only deploy on the 'test' branch
             //}
             steps {
                 input message: 'Approve Kubernetes Deployment?', ok: 'Deploy'  // Manual approval before deployment
